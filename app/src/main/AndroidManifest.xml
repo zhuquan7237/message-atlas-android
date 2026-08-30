@@ -5,7 +5,8 @@
     <application
         android:name=".MessageAtlasApp"
         android:allowBackup="false"
-        android:icon="@drawable/ic_launcher_foreground"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="消息图谱"
         android:supportsRtl="true"
         android:theme="@style/Theme.MessageAtlas"
