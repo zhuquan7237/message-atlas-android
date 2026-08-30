@@ -10,15 +10,11 @@ import java.time.LocalDate
 
 data class UiState(
     val day: LocalDate = LocalDate.now(), val messages: List<CapturedMessage> = emptyList(),
+    val visibleMessages: List<CapturedMessage> = emptyList(),
     val rules: List<AppRule> = emptyList(), val reports: List<DailyReport> = emptyList(),
     val settings: UserSettings = UserSettings(), val query: String = "", val source: String? = null,
     val busy: Boolean = false, val notice: String? = null, val availableModels: List<String> = emptyList()
-) {
-    val visibleMessages get() = messages.filter { m ->
-        (query.isBlank() || listOf(m.appName, m.title, m.content).any { it.contains(query, true) }) &&
-            (source == null || m.packageName == source)
-    }
-}
+)
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -48,8 +44,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     val state = combine(selectedDay, content, controls) { day, content, controls ->
+        val visibleMessages = content.messages.filter { message ->
+            (controls.query.isBlank() ||
+                message.appName.contains(controls.query, ignoreCase = true) ||
+                message.title.contains(controls.query, ignoreCase = true) ||
+                message.content.contains(controls.query, ignoreCase = true)) &&
+                (controls.source == null || message.packageName == controls.source)
+        }
         UiState(
-            day = day, messages = content.messages, rules = content.rules, reports = content.reports,
+            day = day, messages = content.messages, visibleMessages = visibleMessages,
+            rules = content.rules, reports = content.reports,
             settings = content.settings, query = controls.query, source = controls.source,
             busy = controls.busy, notice = controls.notice, availableModels = controls.availableModels
         )

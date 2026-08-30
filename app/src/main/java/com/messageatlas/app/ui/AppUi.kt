@@ -108,7 +108,7 @@ private val destinations = listOf(
 @Composable private fun HomeScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit) {
     var searchOpen by remember { mutableStateOf(false) }
     var sourceMenu by remember { mutableStateOf(false) }
-    val sources = state.messages.distinctBy { it.packageName }
+    val sources = remember(state.messages) { state.messages.distinctBy { it.packageName } }
     Page("消息图谱", state.day.format(DateTimeFormatter.ofPattern("M月d日 EEEE"))) {
         Button(vm::generateReport, Modifier.fillMaxWidth().height(54.dp), enabled = !state.busy && state.messages.isNotEmpty(), shape = RoundedCornerShape(18.dp)) {
             if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) else Icon(Icons.Outlined.AutoAwesome, null)
@@ -131,31 +131,33 @@ private val destinations = listOf(
         Text("${state.visibleMessages.size} 条消息", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(8.dp))
         if (state.visibleMessages.isEmpty()) EmptyState("暂时没有消息", "开启通知读取权限后，新通知会自动出现在这里。")
-        else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
-            items(state.visibleMessages, key = { it.id }) { message -> MessageCard(message, vm) }
+        else LazyColumn(
+            Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(bottom = 20.dp)
+        ) {
+            items(state.visibleMessages, key = { it.id }, contentType = { "message" }) { message ->
+                MessageCard(message, vm)
+            }
         }
     }
 }
 
 @Composable private fun MessageCard(message: CapturedMessage, vm: MainViewModel) {
     var expanded by remember { mutableStateOf(false) }
-    AnimatedVisibility(true, enter = fadeIn()) {
-        ElevatedCard(
-            Modifier.fillMaxWidth().animateContentSize(
-                spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
-            ).clickable { expanded = !expanded },
-            shape = RoundedCornerShape(18.dp)
-        ) {
-            Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(9.dp)) { Text(message.appName.take(2), Modifier.padding(8.dp), fontWeight = FontWeight.Bold) }
-                    Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(message.appName, fontWeight = FontWeight.SemiBold); Text(message.postedAt.timeText(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    IconButton({ vm.toggleImportant(message.id) }) { Icon(if (message.isImportant) Icons.Outlined.Star else Icons.Outlined.StarBorder, "重点") }
-                }
-                if (message.title.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(message.title, fontWeight = FontWeight.SemiBold) }
-                Text(message.content, maxLines = if (expanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis)
-                if (expanded) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { TextButton({ vm.deleteMessage(message.id) }) { Icon(Icons.Outlined.Delete, null); Text("删除") } }
+    Card(
+        Modifier.fillMaxWidth().clickable { expanded = !expanded },
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(9.dp)) { Text(message.appName.take(2), Modifier.padding(8.dp), fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(message.appName, fontWeight = FontWeight.SemiBold); Text(message.postedAt.timeText(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                IconButton({ vm.toggleImportant(message.id) }) { Icon(if (message.isImportant) Icons.Outlined.Star else Icons.Outlined.StarBorder, "重点") }
             }
+            if (message.title.isNotBlank()) { Spacer(Modifier.height(8.dp)); Text(message.title, fontWeight = FontWeight.SemiBold) }
+            Text(message.content, maxLines = if (expanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis)
+            if (expanded) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { TextButton({ vm.deleteMessage(message.id) }) { Icon(Icons.Outlined.Delete, null); Text("删除") } }
         }
     }
 }
@@ -170,8 +172,8 @@ private val destinations = listOf(
             ) { Text(when(mode){RuleMode.ALL->"全部";RuleMode.WHITELIST->"白名单";RuleMode.BLACKLIST->"黑名单"}) }
         } }
         Spacer(Modifier.height(16.dp))
-        if (apps.isEmpty()) EmptyState("还没有来源", "收到通知后即可在这里设置允许或屏蔽。") else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(apps, key = { it.first }) { (pkg, name) ->
+        if (apps.isEmpty()) EmptyState("还没有来源", "收到通知后即可在这里设置允许或屏蔽。") else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(apps, key = { it.first }, contentType = { "rule" }) { (pkg, name) ->
                 val rule = state.rules.firstOrNull { it.packageName == pkg }
                 ElevatedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -195,7 +197,7 @@ private val destinations = listOf(
     var prompt by remember(state.settings.prompt) { mutableStateOf(state.settings.prompt) }
     var modelMenu by remember { mutableStateOf(false) }
     Page("AI 自定义配置", "兼容 OpenAI Chat Completions 协议；公网接口建议使用 HTTPS") {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
             item { OutlinedTextField(url, { url = it }, Modifier.fillMaxWidth(), label = { Text("API Base URL 或完整端点") }, singleLine = true, supportingText = { Text("例如：https://api.openai.com/v1") }) }
             item { OutlinedTextField(key, { key = it }, Modifier.fillMaxWidth(), label = { Text(if (state.settings.encryptedApiKey.isBlank()) "API 密钥" else "API 密钥（留空则保持原密钥）") }, visualTransformation = PasswordVisualTransformation(), singleLine = true) }
             item {
@@ -242,7 +244,7 @@ private val destinations = listOf(
     var selected by remember { mutableStateOf<DailyReport?>(null) }
     Page("历史记录", "每日消息与 AI 报告均保存在本机") {
         if (state.reports.isEmpty()) EmptyState("尚无日报", "在首页点击“一键 AI 智能整理”生成第一份日报。")
-        else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) { items(state.reports, key = { it.dateKey }) { report ->
+        else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) { items(state.reports, key = { it.dateKey }, contentType = { "report" }) { report ->
             ElevatedCard(Modifier.fillMaxWidth().clickable { selected = report }, shape = RoundedCornerShape(18.dp)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) { Text(report.dateKey, fontWeight = FontWeight.SemiBold); Text(report.model, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -326,7 +328,7 @@ private fun reportShareText(report: DailyReport): String {
     val context = LocalContext.current
     val listenerOn = remember { derivedStateOf { Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")?.contains(context.packageName) == true } }
     Page("设置", "权限、界面与本地存储") {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item { SettingCard(Icons.Outlined.Notifications, "通知读取权限", if (listenerOn.value) "已开启" else "未开启：无法自动收录通知") { context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")) } }
             item { SettingCard(Icons.Outlined.BatterySaver, "后台运行设置", "允许忽略电池优化可降低漏录概率") { context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) } }
             item { SettingCard(Icons.Outlined.PowerSettingsNew, "自启动（可选）", "不同厂商入口不同，请在系统应用管理中开启") { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))) } }
