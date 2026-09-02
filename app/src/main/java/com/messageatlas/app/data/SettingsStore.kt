@@ -29,7 +29,9 @@ data class UserSettings(
     val urgentVibrateEnabled: Boolean = true,
     val urgentSoundEnabled: Boolean = true,
     val lastInspectionTime: Long = 0L,
-    val lastInspectionResult: String = "尚未开始检查"
+    val lastInspectionResult: String = "尚未开始检查",
+    val updateCheckEnabled: Boolean = true,
+    val lastUpdateCheckTime: Long = 0L
 )
 
 class SettingsStore(private val context: Context) {
@@ -47,6 +49,8 @@ class SettingsStore(private val context: Context) {
         val urgentSound = booleanPreferencesKey("urgent_sound")
         val lastInspectionTime = longPreferencesKey("last_inspection_time")
         val lastInspectionResult = stringPreferencesKey("last_inspection_result")
+        val updateCheckEnabled = booleanPreferencesKey("update_check_enabled")
+        val lastUpdateCheckTime = longPreferencesKey("last_update_check_time")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { p ->
@@ -63,7 +67,9 @@ class SettingsStore(private val context: Context) {
             urgentVibrateEnabled = p[Keys.urgentVibrate] ?: true,
             urgentSoundEnabled = p[Keys.urgentSound] ?: true,
             lastInspectionTime = p[Keys.lastInspectionTime] ?: 0L,
-            lastInspectionResult = p[Keys.lastInspectionResult] ?: "尚未开始检查"
+            lastInspectionResult = p[Keys.lastInspectionResult] ?: "尚未开始检查",
+            updateCheckEnabled = p[Keys.updateCheckEnabled] ?: true,
+            lastUpdateCheckTime = p[Keys.lastUpdateCheckTime] ?: 0L
         )
     }
 
@@ -87,6 +93,12 @@ class SettingsStore(private val context: Context) {
             it[Keys.lastInspectionTime] = time
             it[Keys.lastInspectionResult] = result
         }
+    }
+    suspend fun setUpdateCheckEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.updateCheckEnabled] = enabled }
+    }
+    suspend fun recordUpdateCheck(time: Long) {
+        context.dataStore.edit { it[Keys.lastUpdateCheckTime] = time }
     }
     fun decryptApiKey(value: String): String = if (value.isBlank()) "" else SecretBox.decrypt(value)
 }

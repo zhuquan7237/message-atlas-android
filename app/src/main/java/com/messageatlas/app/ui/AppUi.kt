@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
 import com.messageatlas.app.MainViewModel
+import com.messageatlas.app.UpdateState
 import com.messageatlas.app.UiState
 import com.messageatlas.app.data.*
 import java.time.DayOfWeek
@@ -175,6 +176,7 @@ private fun HomeScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit) {
     var searchOpen by remember { mutableStateOf(false) }
     val sources = remember(state.messages) { state.messages.distinctBy { it.packageName } }
     val urgentCount = remember(state.messages) { state.messages.count { it.isImportant } }
+    val update by vm.update.collectAsStateWithLifecycle()
 
     Page(
         title = "消息图谱",
@@ -196,7 +198,7 @@ private fun HomeScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit) {
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        if (state.settings.inspectionEnabled) "10分巡检中" else "巡检已暂停",
+                        if (state.settings.inspectionEnabled) "${state.settings.inspectionIntervalMinutes}分巡检中" else "巡检已暂停",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = if (state.settings.inspectionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -205,11 +207,32 @@ private fun HomeScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit) {
             }
         }
     ) {
+        // 发现新版本横幅
+        when (val u = update) {
+            is UpdateState.Available -> UpdateBanner(
+                title = "发现新版本 ${u.info.version}",
+                actionText = "更新",
+                progress = null
+            ) { vm.downloadUpdate() }
+            is UpdateState.Downloading -> UpdateBanner(
+                title = "正在下载更新包 ${u.progress}%",
+                actionText = null,
+                progress = u.progress
+            ) {}
+            is UpdateState.Downloaded -> UpdateBanner(
+                title = "更新包已就绪",
+                actionText = "安装",
+                progress = null
+            ) { vm.installDownloaded() }
+            else -> {}
+        }
+
         // AI 智能守护 Hero 卡片
         GuardianHeroCard(
             inspectionResult = state.settings.lastInspectionResult,
             busy = state.busy,
             inspectionEnabled = state.settings.inspectionEnabled,
+            intervalMinutes = state.settings.inspectionIntervalMinutes,
             urgentCount = urgentCount,
             totalCount = state.messages.size,
             onInspectNow = vm::inspectNow,
@@ -350,6 +373,7 @@ private fun GuardianHeroCard(
     inspectionResult: String,
     busy: Boolean,
     inspectionEnabled: Boolean,
+    intervalMinutes: Int,
     urgentCount: Int,
     totalCount: Int,
     onInspectNow: () -> Unit,
@@ -395,7 +419,7 @@ private fun GuardianHeroCard(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            "每10分钟唤醒研判",
+                            "每${intervalMinutes}分钟唤醒研判",
                             Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall
@@ -478,6 +502,92 @@ private fun GuardianHeroCard(
             }
         }
     }
+}
+
+@Composable
+private fun UpdateBanner(title: String, actionText: String?, progress: Int?, onClick: () -> Unit) {
+    Surface(
+        color = DesignTokens.urgentContainer(),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.CloudDownload, null,
+                    Modifier.size(18.dp), tint = DesignTokens.urgentColor()
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    title, Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = DesignTokens.urgentColor()
+                )
+                if (actionText != null) {
+                    TextButton(onClick = onClick, enabled = progress == null, contentPadding = PaddingValues(horizontal = 10.dp)) {
+                        Text(actionText, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            progress?.let {
+                Spacer(Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { it / 100f },
+                    modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun IntervalPickerDialog(current: Int, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
+    var text by remember { mutableStateOf(current.toString()) }
+    val parsed = text.trim().toIntOrNull()
+    val valid = parsed != null && parsed in 1..720
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.Alarm, null, tint = MaterialTheme.colorScheme.primary) },
+        title = { Text("自定义检查频率") },
+        text = {
+            Column {
+                Text(
+                    "每多少分钟自动唤醒一次 AI 巡检（1–720 分钟）",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(5, 10, 15, 30, 60).forEach { preset ->
+                        FilterChip(
+                            selected = text.trim() == preset.toString(),
+                            onClick = { text = preset.toString() },
+                            label = { Text("${preset}分") }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { value -> text = value.filter { it.isDigit() }.take(3) },
+                    Modifier.fillMaxWidth(),
+                    label = { Text("自定义分钟数") },
+                    singleLine = true,
+                    isError = !valid,
+                    supportingText = {
+                        Text(
+                            if (valid) "将在每 $parsed 分钟自动检查新消息" else "请输入 1–720 之间的整数",
+                            color = if (valid) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                    }
+                )
+            }
+        },
+        confirmButton = {
+            Button(enabled = valid, onClick = { onConfirm(parsed!!); onDismiss() }) { Text("确定") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
 }
 
 @Composable
@@ -1077,17 +1187,23 @@ private fun SettingsScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit
                 ?.contains(context.packageName) == true
         }
     }
+    val update by vm.update.collectAsStateWithLifecycle()
+    val versionName = remember {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrDefault("")
+    }
+    var intervalDialog by remember { mutableStateOf(false) }
+    val interval = state.settings.inspectionIntervalMinutes
 
-    Page("设置", "AI 10分钟智能巡检、强提醒与系统权限") {
+    Page("设置", "AI ${interval}分钟智能巡检、强提醒与系统权限") {
         LazyColumn(
             Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             contentPadding = PaddingValues(bottom = 20.dp)
         ) {
-            // 分组 1：AI 10分钟巡检与强提醒
+            // 分组 1：AI 智能巡检与强提醒
             item {
                 Text(
-                    "AI 10分钟智能巡检与强提醒",
+                    "AI ${interval}分钟智能巡检与强提醒",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -1105,13 +1221,34 @@ private fun SettingsScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit
                             Icon(Icons.Outlined.Alarm, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("每 10 分钟自动检查新消息", fontWeight = FontWeight.Bold)
+                                Text("每 $interval 分钟自动检查新消息", fontWeight = FontWeight.Bold)
                                 Text("后台唤醒 AI 研判紧急度，发现重要事项立即触发强提醒", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Switch(
                                 checked = state.settings.inspectionEnabled,
                                 onCheckedChange = vm::setInspectionEnabled
                             )
+                        }
+
+                        Divider(Modifier.padding(vertical = 12.dp), color = DesignTokens.cardBorder())
+
+                        Row(
+                            Modifier.fillMaxWidth().clickable { intervalDialog = true },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.Timer, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("检查频率", fontWeight = FontWeight.SemiBold)
+                                Text("自定义自动巡检的唤醒间隔", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(
+                                "$interval 分钟",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
                         Divider(Modifier.padding(vertical = 12.dp), color = DesignTokens.cardBorder())
@@ -1191,6 +1328,112 @@ private fun SettingsScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit
                     "当前模型：${state.settings.model}",
                     openAi
                 )
+            }
+
+            // 分组：版本与更新
+            item {
+                Text(
+                    "版本与更新",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            item {
+                ElevatedCard(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.SystemUpdateAlt, null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("自动检查更新", fontWeight = FontWeight.SemiBold)
+                                Text("当前版本 v$versionName · 每 24 小时静默检查一次", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(
+                                checked = state.settings.updateCheckEnabled,
+                                onCheckedChange = vm::setUpdateCheckEnabled
+                            )
+                        }
+
+                        Divider(Modifier.padding(vertical = 12.dp), color = DesignTokens.cardBorder())
+
+                        when (val u = update) {
+                            is UpdateState.Checking -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("正在检查更新…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            is UpdateState.Available -> Column {
+                                Text(
+                                    "发现新版本 ${u.info.version}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                if (u.info.notes.isNotBlank()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        u.info.notes.take(200),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 4,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                Button(
+                                    onClick = vm::downloadUpdate,
+                                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(Icons.Outlined.CloudDownload, null, Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("下载并安装")
+                                }
+                            }
+                            UpdateState.UpToDate -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.CheckCircle, null, Modifier.size(16.dp), tint = DesignTokens.normalColor())
+                                Spacer(Modifier.width(6.dp))
+                                Text("已是最新版本", style = MaterialTheme.typography.bodyMedium, color = DesignTokens.normalColor())
+                            }
+                            is UpdateState.Downloading -> Column {
+                                Text("正在下载更新包 ${u.progress}%", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    progress = { u.progress / 100f },
+                                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp))
+                                )
+                            }
+                            is UpdateState.Downloaded -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.CheckCircle, null, Modifier.size(16.dp), tint = DesignTokens.normalColor())
+                                Spacer(Modifier.width(6.dp))
+                                Text("更新包已就绪", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                                Button(onClick = vm::installDownloaded, shape = RoundedCornerShape(12.dp)) {
+                                    Text("安装")
+                                }
+                            }
+                            is UpdateState.Failed -> Column {
+                                Text(u.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick = vm::checkUpdateNow,
+                                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) { Text("重试") }
+                            }
+                            UpdateState.Idle -> OutlinedButton(
+                                onClick = vm::checkUpdateNow,
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) { Text("检查更新") }
+                        }
+                    }
+                }
             }
 
             // 分组 3：系统权限与保活
@@ -1300,6 +1543,14 @@ private fun SettingsScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit
                 }
             }
         }
+    }
+
+    if (intervalDialog) {
+        IntervalPickerDialog(
+            current = interval,
+            onDismiss = { intervalDialog = false },
+            onConfirm = vm::setInspectionInterval
+        )
     }
 }
 
