@@ -8,7 +8,9 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(message: CapturedMessage)
     @Query("SELECT * FROM messages WHERE postedAt BETWEEN :start AND :end ORDER BY postedAt DESC") fun observeBetween(start: Long, end: Long): Flow<List<CapturedMessage>>
     @Query("SELECT * FROM messages WHERE postedAt BETWEEN :start AND :end ORDER BY postedAt ASC") suspend fun getBetween(start: Long, end: Long): List<CapturedMessage>
+    @Query("SELECT * FROM messages WHERE postedAt > :since ORDER BY postedAt ASC") suspend fun getAfter(since: Long): List<CapturedMessage>
     @Query("UPDATE messages SET isImportant = NOT isImportant WHERE id = :id") suspend fun toggleImportant(id: Long)
+    @Query("UPDATE messages SET isImportant = :important WHERE id = :id") suspend fun setImportant(id: Long, important: Boolean)
     @Query("DELETE FROM messages WHERE id = :id") suspend fun delete(id: Long)
     @Query("DELETE FROM messages WHERE postedAt BETWEEN :start AND :end") suspend fun deleteBetween(start: Long, end: Long)
     @Query("DELETE FROM messages") suspend fun deleteAll()

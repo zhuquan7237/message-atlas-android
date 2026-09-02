@@ -6,9 +6,21 @@ import android.service.notification.StatusBarNotification
 import com.messageatlas.app.MessageAtlasApp
 import com.messageatlas.app.data.CapturedMessage
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 
 class MessageNotificationListener : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        NotificationHelper.createNotificationChannel(this)
+        scope.launch {
+            val app = application as MessageAtlasApp
+            if (app.settings.flow.first().inspectionEnabled) {
+                SmartInspector.scheduleNext(this@MessageNotificationListener)
+            }
+        }
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (sbn.packageName == packageName) return

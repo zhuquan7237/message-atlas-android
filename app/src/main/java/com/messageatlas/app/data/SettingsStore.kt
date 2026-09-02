@@ -23,7 +23,13 @@ data class UserSettings(
     val encryptedApiKey: String = "",
     val prompt: String = DEFAULT_PROMPT,
     val animationEnabled: Boolean = true,
-    val onboardingSeen: Boolean = false
+    val onboardingSeen: Boolean = false,
+    val inspectionEnabled: Boolean = false,
+    val inspectionIntervalMinutes: Int = 10,
+    val urgentVibrateEnabled: Boolean = true,
+    val urgentSoundEnabled: Boolean = true,
+    val lastInspectionTime: Long = 0L,
+    val lastInspectionResult: String = "尚未开始检查"
 )
 
 class SettingsStore(private val context: Context) {
@@ -35,6 +41,12 @@ class SettingsStore(private val context: Context) {
         val prompt = stringPreferencesKey("prompt")
         val animation = booleanPreferencesKey("animation")
         val onboarding = booleanPreferencesKey("onboarding")
+        val inspectionEnabled = booleanPreferencesKey("inspection_enabled")
+        val inspectionInterval = intPreferencesKey("inspection_interval")
+        val urgentVibrate = booleanPreferencesKey("urgent_vibrate")
+        val urgentSound = booleanPreferencesKey("urgent_sound")
+        val lastInspectionTime = longPreferencesKey("last_inspection_time")
+        val lastInspectionResult = stringPreferencesKey("last_inspection_result")
     }
 
     val flow: Flow<UserSettings> = context.dataStore.data.map { p ->
@@ -45,7 +57,13 @@ class SettingsStore(private val context: Context) {
             encryptedApiKey = p[Keys.apiKey] ?: "",
             prompt = p[Keys.prompt]?.takeUnless { it == LEGACY_DEFAULT_PROMPT } ?: DEFAULT_PROMPT,
             animationEnabled = p[Keys.animation] ?: true,
-            onboardingSeen = p[Keys.onboarding] ?: false
+            onboardingSeen = p[Keys.onboarding] ?: false,
+            inspectionEnabled = p[Keys.inspectionEnabled] ?: false,
+            inspectionIntervalMinutes = p[Keys.inspectionInterval] ?: 10,
+            urgentVibrateEnabled = p[Keys.urgentVibrate] ?: true,
+            urgentSoundEnabled = p[Keys.urgentSound] ?: true,
+            lastInspectionTime = p[Keys.lastInspectionTime] ?: 0L,
+            lastInspectionResult = p[Keys.lastInspectionResult] ?: "尚未开始检查"
         )
     }
 
@@ -60,6 +78,16 @@ class SettingsStore(private val context: Context) {
     suspend fun setRuleMode(mode: RuleMode) { context.dataStore.edit { it[Keys.ruleMode] = mode.name } }
     suspend fun setAnimation(enabled: Boolean) { context.dataStore.edit { it[Keys.animation] = enabled } }
     suspend fun setOnboardingSeen() { context.dataStore.edit { it[Keys.onboarding] = true } }
+    suspend fun setInspectionEnabled(enabled: Boolean) { context.dataStore.edit { it[Keys.inspectionEnabled] = enabled } }
+    suspend fun setInspectionInterval(minutes: Int) { context.dataStore.edit { it[Keys.inspectionInterval] = minutes } }
+    suspend fun setUrgentVibrate(enabled: Boolean) { context.dataStore.edit { it[Keys.urgentVibrate] = enabled } }
+    suspend fun setUrgentSound(enabled: Boolean) { context.dataStore.edit { it[Keys.urgentSound] = enabled } }
+    suspend fun recordInspection(time: Long, result: String) {
+        context.dataStore.edit {
+            it[Keys.lastInspectionTime] = time
+            it[Keys.lastInspectionResult] = result
+        }
+    }
     fun decryptApiKey(value: String): String = if (value.isBlank()) "" else SecretBox.decrypt(value)
 }
 

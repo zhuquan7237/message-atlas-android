@@ -1,9 +1,12 @@
 package com.messageatlas.app
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.messageatlas.app.data.*
+import com.messageatlas.app.service.NotificationHelper
+import com.messageatlas.app.service.SmartInspector
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -86,6 +89,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun generateReport() = launchBusy("日报已生成并保存") { repo.generateReport(selectedDay.value) }
     fun toggleFavorite(date: String) = viewModelScope.launch { repo.toggleReportFavorite(date) }
     fun deleteReport(date: String) = viewModelScope.launch { repo.deleteReport(date) }
+
+    fun setInspectionEnabled(enabled: Boolean) = viewModelScope.launch {
+        app.settings.setInspectionEnabled(enabled)
+        val context: Context = getApplication()
+        if (enabled) SmartInspector.scheduleNext(context)
+        else SmartInspector.cancelInspectionAlarm(context)
+    }
+    fun setInspectionInterval(minutes: Int) = viewModelScope.launch {
+        app.settings.setInspectionInterval(minutes)
+        val context: Context = getApplication()
+        SmartInspector.scheduleInspectionAlarm(context, minutes)
+    }
+    fun setUrgentVibrate(enabled: Boolean) = viewModelScope.launch { app.settings.setUrgentVibrate(enabled) }
+    fun setUrgentSound(enabled: Boolean) = viewModelScope.launch { app.settings.setUrgentSound(enabled) }
+
+    fun inspectNow() = viewModelScope.launch {
+        busy.value = true
+        notice.value = runCatching { SmartInspector.inspectNow(getApplication(), isManual = true) }
+            .getOrElse { it.message ?: "巡检失败" }
+        busy.value = false
+    }
+
+    fun testUrgentAlert() {
+        NotificationHelper.showTestAlert(getApplication())
+        notice.value = "已发出测试强提醒，请查看手机通知栏与横幅"
+    }
+
     fun consumeNotice() { notice.value = null }
 
     private fun launchBusy(success: String, block: suspend () -> Any) = viewModelScope.launch {
