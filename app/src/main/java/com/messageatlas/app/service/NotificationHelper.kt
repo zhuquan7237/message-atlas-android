@@ -20,13 +20,13 @@ object NotificationHelper {
     private const val CHANNEL_ALERT = "channel_ai_urgent_alert"
     private const val CHANNEL_VIBRATE = "channel_ai_urgent_vibrate"
     private const val CHANNEL_SILENT = "channel_ai_urgent_silent"
-    private const val CHANNEL_CONVERSATION = "channel_person_conversation"
-    private const val CHANNEL_CONVERSATION_SOUND = "channel_person_conversation_sound"
-    private const val CHANNEL_CONVERSATION_VIBRATE = "channel_person_conversation_vibrate"
-    private const val CHANNEL_CONVERSATION_SILENT = "channel_person_conversation_silent"
+    // Android persists channel importance, sound and vibration. A new ID prevents
+    // stale v0.3.2 channel settings from silently weakening this alert.
+    private const val CHANNEL_CONVERSATION_V2 = "channel_person_conversation_strong_v2"
     private const val CHANNEL_NAME = "AI 紧急强提醒"
     private const val NOTIFICATION_ID_BASE = 888000
-    private const val NOTIFICATION_ID_CONVERSATION = 887001
+    private const val NOTIFICATION_ID_CONVERSATION_BASE = 887000
+    private const val NOTIFICATION_ID_CONVERSATION_SLOTS = 4
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -35,6 +35,12 @@ object NotificationHelper {
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+            .build()
+        val alarmSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val alarmAudioAttributes = AudioAttributes.Builder()
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .setUsage(AudioAttributes.USAGE_ALARM)
             .build()
         val description = "当 AI 检测到重要紧急消息时触发的高优先级强提醒（支持横幅、强震动与提示音）"
 
@@ -68,39 +74,12 @@ object NotificationHelper {
             }
         )
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_CONVERSATION, "人物对话即时提醒", NotificationManager.IMPORTANCE_HIGH).apply {
-                this.description = "收到疑似人物对话时立即提醒，并保留在通知栏直到打开消息图谱"
+            NotificationChannel(CHANNEL_CONVERSATION_V2, "人物消息强提醒", NotificationManager.IMPORTANCE_HIGH).apply {
+                this.description = "人物消息立即响铃、强震动并显示横幅，直到打开消息图谱"
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 350, 150, 350)
-                setSound(soundUri, audioAttributes)
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                setShowBadge(true)
-            }
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_CONVERSATION_VIBRATE, "人物对话即时提醒（仅震动）", NotificationManager.IMPORTANCE_HIGH).apply {
-                this.description = "收到疑似人物对话时立即震动，并保留在通知栏直到打开消息图谱"
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 350, 150, 350)
-                setSound(null, null)
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                setShowBadge(true)
-            }
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_CONVERSATION_SOUND, "人物对话即时提醒（仅响铃）", NotificationManager.IMPORTANCE_HIGH).apply {
-                this.description = "收到疑似人物对话时播放提示音，并保留在通知栏直到打开消息图谱"
-                enableVibration(false)
-                setSound(soundUri, audioAttributes)
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                setShowBadge(true)
-            }
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_CONVERSATION_SILENT, "人物对话即时提醒（静默）", NotificationManager.IMPORTANCE_HIGH).apply {
-                this.description = "收到疑似人物对话时保留高优先级通知，不播放声音或震动"
-                enableVibration(false)
-                setSound(null, null)
+                vibrationPattern = longArrayOf(0, 800, 200, 800, 200, 1200)
+                enableLights(true)
+                setSound(alarmSoundUri, alarmAudioAttributes)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 setShowBadge(true)
             }
@@ -112,9 +91,7 @@ object NotificationHelper {
         title: String,
         content: String,
         appName: String,
-        messageId: Long,
-        vibrate: Boolean,
-        sound: Boolean
+        messageId: Long
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
@@ -125,32 +102,42 @@ object NotificationHelper {
             putExtra("TARGET_MESSAGE_ID", messageId)
         }
         val pendingIntent = PendingIntent.getActivity(
-            context, 887001, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            context, messageId.toInt(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val channelId = when {
-            sound && vibrate -> CHANNEL_CONVERSATION
-            sound -> CHANNEL_CONVERSATION_SOUND
-            vibrate -> CHANNEL_CONVERSATION_VIBRATE
-            else -> CHANNEL_CONVERSATION_SILENT
-        }
-        val builder = NotificationCompat.Builder(context, channelId)
+        val notificationId = NOTIFICATION_ID_CONVERSATION_BASE +
+            Math.floorMod(messageId, NOTIFICATION_ID_CONVERSATION_SLOTS.toLong()).toInt()
+        val builder = NotificationCompat.Builder(context, CHANNEL_CONVERSATION_V2)
             .setSmallIcon(R.drawable.ic_stat_funnel)
             .setContentTitle("新的人物消息 · $appName")
             .setContentText(content.ifBlank { title })
             .setStyle(NotificationCompat.MessagingStyle("消息图谱").addMessage(
                 content.ifBlank { title }, System.currentTimeMillis(), title
             ))
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setOnlyAlertOnce(false)
+            .setDefaults(android.app.Notification.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
-        runCatching { NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_CONVERSATION, builder.build()) }
+        runCatching {
+            NotificationManagerCompat.from(context).apply {
+                // Rotate through a few IDs so OEM builds cannot silently classify every
+                // new message as a non-interruptive update, while keeping only one alert.
+                repeat(NOTIFICATION_ID_CONVERSATION_SLOTS) {
+                    cancel(NOTIFICATION_ID_CONVERSATION_BASE + it)
+                }
+                notify(notificationId, builder.build())
+            }
+        }
     }
 
     fun clearConversationAlert(context: Context) {
-        NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID_CONVERSATION)
+        NotificationManagerCompat.from(context).apply {
+            repeat(NOTIFICATION_ID_CONVERSATION_SLOTS) {
+                cancel(NOTIFICATION_ID_CONVERSATION_BASE + it)
+            }
+        }
     }
 
     fun showUrgentAlert(
@@ -211,14 +198,12 @@ object NotificationHelper {
     }
 
     fun showTestAlert(context: Context) {
-        showUrgentAlert(
+        showConversationAlert(
             context = context,
-            title = "测试：检测到重要紧急事项",
-            reason = "这是一条 AI 强提醒测试，已成功触发强震动与高优先级横幅通知！",
-            action = "点击横幅即可直达消息图谱",
+            title = "人物消息测试",
+            content = "这是一条人物消息强提醒测试，应触发铃声、强震动和横幅",
             appName = "消息图谱",
-            vibrate = true,
-            sound = true
+            messageId = System.currentTimeMillis()
         )
     }
 }

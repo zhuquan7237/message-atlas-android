@@ -19,4 +19,20 @@ class ConversationDetectorTest {
     fun groupSummaryIsNotConversation() {
         assertFalse(ConversationDetector.isPersonConversation("msg", true, true, "MessagingStyle", "3 messages", "", true))
     }
+
+    @Test
+    fun knownMessagingAppFallsBackWhenMetadataIsMissing() {
+        assertTrue(ConversationDetector.isPersonConversation(
+            packageName = "com.tencent.mm", category = null, hasMessages = false,
+            hasPeople = false, template = null, title = "Alice", content = "Are you there?"
+        ))
+    }
+
+    @Test
+    fun ongoingMessagingNotificationIsIgnored() {
+        assertFalse(ConversationDetector.isPersonConversation(
+            packageName = "com.tencent.mm", category = null, hasMessages = false,
+            hasPeople = false, template = null, title = "微信", content = "正在运行", isOngoing = true
+        ))
+    }
 }
