@@ -80,6 +80,8 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## 技术栈
 
+以下为本项目的技术栈（tech stack）构成：
+
 - Kotlin 2.1
 - Jetpack Compose + Material 3
 - Room + DataStore
