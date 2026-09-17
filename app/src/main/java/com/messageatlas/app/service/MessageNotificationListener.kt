@@ -39,11 +39,24 @@ class MessageNotificationListener : NotificationListenerService() {
             if (!app.repository.isAllowed(sbn.packageName)) return@launch
             val appName = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(sbn.packageName, 0)).toString() }
                 .getOrDefault(sbn.packageName)
-            app.repository.insert(CapturedMessage(
+            val message = CapturedMessage(
                 notificationKey = sbn.key, packageName = sbn.packageName, appName = appName,
                 title = title, content = text, postedAt = sbn.postTime,
                 originalOngoing = sbn.isOngoing, originalClearable = sbn.isClearable
-            ))
+            )
+            val messageId = app.repository.insert(message)
+            val settings = app.settings.flow.first()
+            if (ConversationDetector.isPersonConversation(sbn.notification, extras, title, text)) {
+                NotificationHelper.showConversationAlert(
+                    context = this@MessageNotificationListener,
+                    title = title,
+                    content = text,
+                    appName = appName,
+                    messageId = messageId,
+                    vibrate = settings.urgentVibrateEnabled,
+                    sound = settings.urgentSoundEnabled
+                )
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package com.messageatlas.app
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -26,6 +27,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        if (intent.hasExtra("TARGET_MESSAGE_ID")) {
+            NotificationHelper.clearConversationAlert(this)
+        }
+
         NotificationHelper.createNotificationChannel(this)
         lifecycleScope.launch { SmartInspector.scheduleNext(this@MainActivity) }
 
@@ -38,5 +43,12 @@ class MainActivity : ComponentActivity() {
 
         setContent { MessageAtlasTheme { MessageAtlasRoot(viewModel()) } }
     }
-}
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.hasExtra("TARGET_MESSAGE_ID")) {
+            NotificationHelper.clearConversationAlert(this)
+        }
+    }
+}

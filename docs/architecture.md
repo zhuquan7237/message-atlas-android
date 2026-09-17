@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 系统入口 | `MessageNotificationListener` | 接收 Android 系统通知，读取来源、标题、正文和时间，按应用规则决定是否收录 |
 | 后台巡检 | `SmartInspectionReceiver`、`SmartInspector` | 按用户设置的周期调度，将新增通知送交 AI 判断紧急程度 |
-| 提醒 | `NotificationHelper` | 为紧急结果创建高优先级通知，支持横幅、震动和提示音设置 |
+| 提醒 | `NotificationHelper` | 对人物对话即时创建高优先级 MessagingStyle 驻留通知；AI 紧急结果创建高优先级通知，支持横幅、震动和提示音设置 |
 | 状态编排 | `MainViewModel` | 聚合设置、消息、规则和报告状态，向 Compose UI 暴露统一状态 |
 | 数据访问 | `MessageRepository` | 封装 Room DAO、日期范围、规则判断、日报生成和模型查询 |
 | 本地存储 | `AppDatabase`、`SettingsStore` | Room 保存消息/规则/报告；DataStore 保存偏好；Keystore 保护 API 密钥 |
@@ -27,6 +27,12 @@
 2. `SmartInspector` 只读取上次巡检后的新增消息，并调用 `AiClient.evaluateUrgent`。
 3. 日报整理要求模型返回结构化 JSON，映射为立即关注、待办、重要、一般、次要五类；每项包含来源、时间、标题、细节和建议行动。
 4. 紧急结果会被标记为重点，并由 `NotificationHelper` 发出高优先级提醒。Android 13 及以上未授予通知权限时安全跳过发送。
+
+## 人物对话即时提醒
+
+监听服务在本地归档成功后，用通知类别、MessagingStyle 和人物元数据做一次轻量判断。命中人物对话时立即发出驻留在通知栏的高重要性消息通知，不联网、不启动常驻前台服务，也不额外轮询。声音、震动和静默使用独立通知渠道组合，用户点击后清除驻留提醒。
+
+该提醒仍受 Android 系统通知权限、锁屏通知、勿扰模式、省电策略和厂商后台管理影响。首次使用或修改提醒行为后，应在系统的“通知 > 人物对话即时提醒”中确认允许声音、震动、锁屏显示和弹出通知。
 
 ## 安全边界
 

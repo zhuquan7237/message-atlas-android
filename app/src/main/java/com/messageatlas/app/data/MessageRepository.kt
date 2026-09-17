@@ -15,7 +15,7 @@ class MessageRepository(
     fun messagesForDay(day: LocalDate) = db.messageDao().observeBetween(day.startMillis(), day.endMillis())
     suspend fun messagesForDayNow(day: LocalDate) = db.messageDao().getBetween(day.startMillis(), day.endMillis())
     suspend fun getMessagesAfter(since: Long) = db.messageDao().getAfter(since)
-    suspend fun insert(message: CapturedMessage) = db.messageDao().insert(message)
+    suspend fun insert(message: CapturedMessage): Long = db.messageDao().insert(message)
     suspend fun toggleImportant(id: Long) = db.messageDao().toggleImportant(id)
     suspend fun setImportant(id: Long, important: Boolean) = db.messageDao().setImportant(id, important)
     suspend fun deleteMessage(id: Long) = db.messageDao().delete(id)

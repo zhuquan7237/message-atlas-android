@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(message: CapturedMessage)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(message: CapturedMessage): Long
     @Query("SELECT * FROM messages WHERE postedAt BETWEEN :start AND :end ORDER BY postedAt DESC") fun observeBetween(start: Long, end: Long): Flow<List<CapturedMessage>>
     @Query("SELECT * FROM messages WHERE postedAt BETWEEN :start AND :end ORDER BY postedAt ASC") suspend fun getBetween(start: Long, end: Long): List<CapturedMessage>
     @Query("SELECT * FROM messages WHERE postedAt > :since ORDER BY postedAt ASC") suspend fun getAfter(since: Long): List<CapturedMessage>
