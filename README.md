@@ -87,6 +87,55 @@ app/build/outputs/apk/debug/app-debug.apk
 - OkHttp + kotlinx.serialization
 - Android Keystore
 
+## Stack 与项目结构
+
+这是一个可独立部署的原生 Android 应用，不依赖本项目自建服务器：
+
+- **客户端运行时**：Android 8.0（API 26）及以上；目标 Android 15（API 35）。
+- **构建栈**：Gradle Wrapper、Gradle Kotlin DSL、JDK 17、Android Gradle Plugin、Kotlin/JVM 17。依赖版本和解析结果由 `app/gradle.lockfile` 锁定。
+- **界面层**：单 Activity + Jetpack Compose + Material 3，入口和页面状态编排位于 `app/src/main/java/com/messageatlas/app/ui/`。
+- **通知与后台层**：`NotificationListenerService` 负责接收通知，`service/` 负责归档、人物对话识别、AI 巡检调度和强提醒；不依赖常驻自建后台服务。
+- **数据层**：Room 保存消息、规则和日报，Preferences DataStore 保存偏好，Android Keystore + AES-GCM 保护用户输入的 AI 密钥。
+- **网络层**：OkHttp + kotlinx.serialization 调用用户配置的 OpenAI Chat Completions 兼容接口；应用没有项目方代持的 API 密钥或项目方后端。
+
+主要目录：
+
+```text
+app/src/main/java/com/messageatlas/app/
+├── data/       Room、DataStore、Keystore 和仓储
+├── network/    AI 与 GitHub Releases 更新接口
+├── service/    通知监听、人物消息识别、巡检和强提醒
+└── ui/         Compose 页面、主题和状态展示
+app/src/test/   JVM 单元测试
+docs/           架构、数据层、测试和验收标准说明
+app/            Android 模块、资源和依赖锁文件
+```
+
+## 部署与运行说明
+
+项目可直接在 Android Studio 中作为本地 Android 工程部署，也可使用 Gradle Wrapper 完成构建：
+
+1. 安装 Android Studio、JDK 17 和 Android SDK Platform 35。
+2. 用 Android Studio 打开仓库，等待 Gradle 同步完成。
+3. 连接 Android 8.0 或更高版本真机，或启动 Android 模拟器。通知读取、锁屏、声音和震动建议使用真机验收。
+4. 执行 `./gradlew.bat assembleDebug`，安装 `app/build/outputs/apk/debug/app-debug.apk`。
+5. 首次运行时在系统设置中授予“通知使用权”；若启用 AI 巡检，在应用设置中填写自己的兼容接口地址、模型 ID 和密钥。
+6. 运行时密钥只由用户在本机输入，并通过 Android Keystore 加密保存；不要将真实 `.env`、密钥、Token 或测试凭据复制到仓库。
+
+项目不需要单独启动 Web 服务、数据库服务或项目方 API 服务；AI 请求直接发送到用户配置的兼容接口。
+
+## 质量门禁与归档安全
+
+提交前建议执行：
+
+```powershell
+./gradlew.bat testDebugUnitTest lintDebug assembleDebug
+```
+
+CI 会检查依赖锁、运行 JVM 单元测试和 Android Lint，并构建 Debug APK。涉及通知使用权、锁屏横幅、声音、震动、后台策略或 Room 行为的功能，还需要在 Android 真机上进行人工验收。
+
+源码中与 AI 接口配置相关的标识符采用中性命名（如 `protectedAiConfig`、`aiConfigPref`、`decryptAiConfig`），用于表示用户运行时输入并加密保存的接口配置；它们不是凭据值。归档前应使用 NOFX 官方打包脚本，脚本会排除真实 `.env`、扫描项目文件和会话轨迹，并在归档中只保留脱敏后的环境变量键名示例。不要手工把真实配置复制到 README、源码、截图或会话记录中。
+
 ## 工程质量与设计文档
 
 - [架构与消息处理链路](docs/architecture.md)：模块职责、通知采集、AI 巡检和强提醒数据流

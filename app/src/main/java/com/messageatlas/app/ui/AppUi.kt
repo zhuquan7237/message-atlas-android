@@ -886,7 +886,7 @@ private fun AiScreen(state: UiState, vm: MainViewModel, back: () -> Unit) {
                 OutlinedTextField(
                     key, { key = it },
                     Modifier.fillMaxWidth(),
-                    label = { Text(if (state.settings.encryptedApiKey.isBlank()) "API 密钥" else "API 密钥（留空保持原密钥）") },
+                    label = { Text(if (state.settings.protectedAiConfig.isBlank()) "API 密钥" else "API 密钥（留空保持原密钥）") },
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp)

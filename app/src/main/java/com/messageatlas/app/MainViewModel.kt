@@ -104,11 +104,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         app.settings.updateAi(url, key, model, prompt); notice.value = "AI 配置已安全保存"
     }
     fun testAi(url: String, key: String, model: String) = launchBusy("连接成功") {
-        val effectiveKey = key.ifBlank { app.settings.decryptApiKey(app.settings.flow.first().encryptedApiKey) }
+        val effectiveKey = key.ifBlank { app.settings.decryptAiConfig(app.settings.flow.first().protectedAiConfig) }
         repo.testConnection(url, effectiveKey, model)
     }
     fun fetchModels(url: String, key: String) = launchBusy("已获取模型列表") {
-        val effectiveKey = key.ifBlank { app.settings.decryptApiKey(app.settings.flow.first().encryptedApiKey) }
+        val effectiveKey = key.ifBlank { app.settings.decryptAiConfig(app.settings.flow.first().protectedAiConfig) }
         availableModels.value = repo.fetchModels(url, effectiveKey)
     }
     fun generateReport() = launchBusy("日报已生成并保存") { repo.generateReport(selectedDay.value) }

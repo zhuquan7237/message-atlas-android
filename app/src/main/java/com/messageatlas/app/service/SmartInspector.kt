@@ -43,7 +43,7 @@ object SmartInspector {
             return res
         }
 
-        val key = app.settings.decryptApiKey(settings.encryptedApiKey)
+        val key = app.settings.decryptAiConfig(settings.protectedAiConfig)
 
         // 查询上次巡检之后的新消息；从未巡检过则回看一个周期
         val lookbackTime = if (settings.lastInspectionTime > 0) {

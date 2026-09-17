@@ -41,7 +41,7 @@ class MessageRepository(
         val messages = messagesForDayNow(day)
         require(messages.isNotEmpty()) { "当天没有可整理的消息" }
         val config = settings.flow.first()
-        val key = settings.decryptApiKey(config.encryptedApiKey)
+        val key = settings.decryptAiConfig(config.protectedAiConfig)
         require(config.apiUrl.isNotBlank() && config.model.isNotBlank()) { "请先完整配置 AI 接口" }
         val markdown = AiClient().summarize(config.apiUrl, key, config.model, config.prompt, messages)
         val report = DailyReport(day.toString(), markdown, config.model, System.currentTimeMillis())

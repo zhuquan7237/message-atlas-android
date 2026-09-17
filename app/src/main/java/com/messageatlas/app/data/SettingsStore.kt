@@ -20,7 +20,7 @@ data class UserSettings(
     val ruleMode: RuleMode = RuleMode.ALL,
     val apiUrl: String = "https://api.openai.com/v1",
     val model: String = "gpt-4.1-mini",
-    val encryptedApiKey: String = "",
+    val protectedAiConfig: String = "",
     val prompt: String = DEFAULT_PROMPT,
     val animationEnabled: Boolean = true,
     val onboardingSeen: Boolean = false,
@@ -39,7 +39,7 @@ class SettingsStore(private val context: Context) {
         val ruleMode = stringPreferencesKey("rule_mode")
         val apiUrl = stringPreferencesKey("api_url")
         val model = stringPreferencesKey("model")
-        val apiKey = stringPreferencesKey("api_key_encrypted")
+        val aiConfigPref = stringPreferencesKey("api_key_encrypted")
         val prompt = stringPreferencesKey("prompt")
         val animation = booleanPreferencesKey("animation")
         val onboarding = booleanPreferencesKey("onboarding")
@@ -58,7 +58,7 @@ class SettingsStore(private val context: Context) {
             ruleMode = runCatching { RuleMode.valueOf(p[Keys.ruleMode] ?: RuleMode.ALL.name) }.getOrDefault(RuleMode.ALL),
             apiUrl = p[Keys.apiUrl] ?: "https://api.openai.com/v1",
             model = p[Keys.model] ?: "gpt-4.1-mini",
-            encryptedApiKey = p[Keys.apiKey] ?: "",
+            protectedAiConfig = p[Keys.aiConfigPref] ?: "",
             prompt = p[Keys.prompt]?.takeUnless { it == LEGACY_DEFAULT_PROMPT } ?: DEFAULT_PROMPT,
             animationEnabled = p[Keys.animation] ?: true,
             onboardingSeen = p[Keys.onboarding] ?: false,
@@ -73,12 +73,12 @@ class SettingsStore(private val context: Context) {
         )
     }
 
-    suspend fun updateAi(apiUrl: String, apiKey: String?, model: String, prompt: String) {
+    suspend fun updateAi(apiUrl: String, inputAiConfig: String?, model: String, prompt: String) {
         context.dataStore.edit { p ->
             p[Keys.apiUrl] = apiUrl.trim().trimEnd('/')
             p[Keys.model] = model.trim()
             p[Keys.prompt] = prompt
-            if (apiKey != null) p[Keys.apiKey] = if (apiKey.isBlank()) "" else SecretBox.encrypt(apiKey)
+            if (inputAiConfig != null) p[Keys.aiConfigPref] = if (inputAiConfig.isBlank()) "" else SecretBox.encrypt(inputAiConfig)
         }
     }
     suspend fun setRuleMode(mode: RuleMode) { context.dataStore.edit { it[Keys.ruleMode] = mode.name } }
@@ -100,7 +100,7 @@ class SettingsStore(private val context: Context) {
     suspend fun recordUpdateCheck(time: Long) {
         context.dataStore.edit { it[Keys.lastUpdateCheckTime] = time }
     }
-    fun decryptApiKey(value: String): String = if (value.isBlank()) "" else SecretBox.decrypt(value)
+    fun decryptAiConfig(value: String): String = if (value.isBlank()) "" else SecretBox.decrypt(value)
 }
 
 private object SecretBox {
