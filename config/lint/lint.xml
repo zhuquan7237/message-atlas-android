@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <issue id="NewApi" severity="error" />
+    <issue id="InlinedApi" severity="error" />
+    <issue id="MissingPermission" severity="error" />
+    <issue id="UnsafeOptInUsageError" severity="error" />
+    <issue id="UnusedResources" severity="warning" />
+    <issue id="TypographyDashes" severity="ignore" />
+    <issue id="TypographyFractions" severity="ignore" />
+</lint>
+
