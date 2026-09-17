@@ -45,16 +45,13 @@ class MessageNotificationListener : NotificationListenerService() {
                 originalOngoing = sbn.isOngoing, originalClearable = sbn.isClearable
             )
             val messageId = app.repository.insert(message)
-            val settings = app.settings.flow.first()
-            if (ConversationDetector.isPersonConversation(sbn.notification, extras, title, text)) {
+            if (ConversationDetector.isPersonConversation(sbn.packageName, sbn.notification, extras, title, text)) {
                 NotificationHelper.showConversationAlert(
                     context = this@MessageNotificationListener,
                     title = title,
                     content = text,
                     appName = appName,
-                    messageId = messageId,
-                    vibrate = settings.urgentVibrateEnabled,
-                    sound = settings.urgentSoundEnabled
+                    messageId = messageId
                 )
             }
         }

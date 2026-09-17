@@ -1257,8 +1257,8 @@ private fun SettingsScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit
                             Icon(Icons.Outlined.Vibration, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("强提醒震动", fontWeight = FontWeight.SemiBold)
-                                Text("检测到重要事项时发出高感知强震动", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("AI 巡检提醒震动", fontWeight = FontWeight.SemiBold)
+                                Text("仅控制 AI 判定的重要事项；人物消息固定强震动", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Switch(
                                 checked = state.settings.urgentVibrateEnabled,
@@ -1272,8 +1272,8 @@ private fun SettingsScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit
                             Icon(Icons.Outlined.NotificationsActive, null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text("强提醒响铃", fontWeight = FontWeight.SemiBold)
-                                Text("触发高优先级警报提示音", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("AI 巡检提醒响铃", fontWeight = FontWeight.SemiBold)
+                                Text("仅控制 AI 判定的重要事项；人物消息固定响铃", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Switch(
                                 checked = state.settings.urgentSoundEnabled,
@@ -1294,7 +1294,7 @@ private fun SettingsScreen(state: UiState, vm: MainViewModel, openAi: () -> Unit
                             ) {
                                 Icon(Icons.Outlined.Notifications, null, Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("测试强提醒通知")
+                                Text("测试人物强提醒")
                             }
 
                             Button(
