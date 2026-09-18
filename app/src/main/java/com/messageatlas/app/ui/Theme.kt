@@ -1,142 +1,68 @@
 package com.messageatlas.app.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.abs
 
-// 现代高端 Indigo & Slate 调色板（浅色）
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF4F46E5),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFEEF2FF),
-    onPrimaryContainer = Color(0xFF312E81),
-    secondary = Color(0xFF0284C7),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE0F2FE),
-    onSecondaryContainer = Color(0xFF0369A1),
-    tertiary = Color(0xFF059669),
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFD1FAE5),
-    onTertiaryContainer = Color(0xFF065F46),
-    background = Color(0xFFF8FAFC),
-    surface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFFF1F5F9),
-    onSurface = Color(0xFF0F172A),
-    onSurfaceVariant = Color(0xFF475569),
-    outline = Color(0xFFE2E8F0),
-    outlineVariant = Color(0xFFCBD5E1),
-    error = Color(0xFFEF4444),
-    errorContainer = Color(0xFFFEE2E2),
-    onError = Color.White,
-    onErrorContainer = Color(0xFF991B1B)
+    primary = Color(0xFF6950A1), onPrimary = Color.White,
+    primaryContainer = Color(0xFFECE5F7), onPrimaryContainer = Color(0xFF362350),
+    secondary = Color(0xFF59694D), secondaryContainer = Color(0xFFE7ECDC), onSecondaryContainer = Color(0xFF25331D),
+    tertiary = Color(0xFF956344), tertiaryContainer = Color(0xFFF8E6D9),
+    background = Color(0xFFF8F7F4), surface = Color(0xFFFFFEFC),
+    surfaceVariant = Color(0xFFF0EEEA), onSurface = Color(0xFF28252D), onSurfaceVariant = Color(0xFF706B76),
+    outline = Color(0xFFA39CA9), outlineVariant = Color(0xFFE7E3EA),
+    error = Color(0xFFAC394A), errorContainer = Color(0xFFFBE9EB), onErrorContainer = Color(0xFF7A2230)
 )
-
-// 深石板暗色，同色相降低亮度，夜间阅读舒适
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF9DA6FF),
-    onPrimary = Color(0xFF1E1B4B),
-    primaryContainer = Color(0xFF3730A3),
-    onPrimaryContainer = Color(0xFFE0E7FF),
-    secondary = Color(0xFF5FC5F1),
-    onSecondary = Color(0xFF082F49),
-    secondaryContainer = Color(0xFF0A5B84),
-    onSecondaryContainer = Color(0xFFE0F2FE),
-    tertiary = Color(0xFF6EE7B7),
-    onTertiary = Color(0xFF003C25),
-    tertiaryContainer = Color(0xFF065F46),
-    onTertiaryContainer = Color(0xFFD1FAE5),
-    background = Color(0xFF0B1220),
-    surface = Color(0xFF121A2A),
-    surfaceVariant = Color(0xFF1E293B),
-    onSurface = Color(0xFFE2E8F0),
-    onSurfaceVariant = Color(0xFF94A3B8),
-    outline = Color(0xFF3E4C63),
-    outlineVariant = Color(0xFF2B3A50),
-    error = Color(0xFFF87171),
-    errorContainer = Color(0xFF7F1D1D),
-    onError = Color(0xFF450A0A),
-    onErrorContainer = Color(0xFFFECACA)
+    primary = Color(0xFFCDB8F1), onPrimary = Color(0xFF35204F),
+    primaryContainer = Color(0xFF3A304B), onPrimaryContainer = Color(0xFFEADCFB),
+    secondary = Color(0xFFB7CCA1), secondaryContainer = Color(0xFF303D27), onSecondaryContainer = Color(0xFFDDECCC),
+    tertiary = Color(0xFFE7BB98), tertiaryContainer = Color(0xFF4C3629),
+    background = Color(0xFF17151B), surface = Color(0xFF211E26),
+    surfaceVariant = Color(0xFF2B2731), onSurface = Color(0xFFF1ECF4), onSurfaceVariant = Color(0xFFB7AFBF),
+    outline = Color(0xFF807687), outlineVariant = Color(0xFF38323F),
+    error = Color(0xFFFFADBA), errorContainer = Color(0xFF4D2830), onErrorContainer = Color(0xFFFFD9DF)
+)
+private val AtlasTypography = Typography(
+    headlineLarge = TextStyle(fontSize = 30.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp),
+    headlineMedium = TextStyle(fontSize = 25.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold),
+    headlineSmall = TextStyle(fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold),
+    titleLarge = TextStyle(fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold),
+    titleMedium = TextStyle(fontSize = 15.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold),
+    bodyLarge = TextStyle(fontSize = 15.sp, lineHeight = 25.sp),
+    bodyMedium = TextStyle(fontSize = 13.sp, lineHeight = 21.sp),
+    bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 19.sp),
+    labelLarge = TextStyle(fontSize = 13.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
+    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)
 )
 
-private val Type = Typography(
-    headlineLarge = TextStyle(fontSize = 26.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-    headlineSmall = TextStyle(fontSize = 20.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp),
-    titleLarge = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
-    bodyLarge = TextStyle(fontSize = 15.sp, lineHeight = 23.sp, fontWeight = FontWeight.Normal),
-    bodyMedium = TextStyle(fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.Normal),
-    labelLarge = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
-    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
-    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium)
-)
-
-// 视觉渐变与设计常量（明暗自适应部分提供 @Composable 取值函数）
-object DesignTokens {
-    val HeroGradient = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFF3730A3),
-            Color(0xFF4F46E5),
-            Color(0xFF6366F1)
-        )
-    )
-
-    val UrgentGradient = Brush.horizontalGradient(
-        colors = listOf(
-            Color(0xFFFF3366),
-            Color(0xFFFF6584)
-        )
-    )
-
-    @Composable fun cardBorder(): Color = if (isSystemInDarkTheme()) Color(0xFF2C3648) else Color(0xFFE2E8F0)
-    @Composable fun urgentColor(): Color = if (isSystemInDarkTheme()) Color(0xFFFF8199) else Color(0xFFE11D48)
-    @Composable fun urgentContainer(): Color = if (isSystemInDarkTheme()) Color(0xFF421B27) else Color(0xFFFEE2E2)
-    @Composable fun todoColor(): Color = if (isSystemInDarkTheme()) Color(0xFFFBBF24) else Color(0xFFD97706)
-    @Composable fun importantColor(): Color = if (isSystemInDarkTheme()) Color(0xFF8FB2FF) else Color(0xFF2563EB)
-    @Composable fun normalColor(): Color = if (isSystemInDarkTheme()) Color(0xFF45D6B8) else Color(0xFF0D9488)
-    @Composable fun mutedColor(): Color = if (isSystemInDarkTheme()) Color(0xFF94A3B8) else Color(0xFF64748B)
-    @Composable fun starColor(): Color = if (isSystemInDarkTheme()) Color(0xFFFBBF24) else Color(0xFFF59E0B)
-    @Composable fun onlineGreen(): Color = if (isSystemInDarkTheme()) Color(0xFF4ADE80) else Color(0xFF10B981)
-    @Composable fun idleGrey(): Color = if (isSystemInDarkTheme()) Color(0xFF64748B) else Color(0xFF94A3B8)
-
-    // 应用彩色头像分配策略（知名应用品牌色 + 莫兰迪哈希色）
-    fun appColor(appName: String, packageName: String): Color {
-        val lowerName = appName.lowercase()
-        val lowerPkg = packageName.lowercase()
-        return when {
-            "微信" in lowerName || "wechat" in lowerPkg -> Color(0xFF07C160)
-            "钉钉" in lowerName || "dingtalk" in lowerPkg -> Color(0xFF0089FF)
-            "飞书" in lowerName || "lark" in lowerPkg -> Color(0xFF00D6B9)
-            "qq" in lowerName || "tencent.mobileqq" in lowerPkg -> Color(0xFF12B7F5)
-            "支付宝" in lowerName || "alipay" in lowerPkg -> Color(0xFF1677FF)
-            "短信" in lowerName || "mms" in lowerPkg || "sms" in lowerPkg -> Color(0xFF3B82F6)
-            "电话" in lowerName || "dialer" in lowerPkg -> Color(0xFF10B981)
-            "邮件" in lowerName || "mail" in lowerPkg -> Color(0xFF8B5CF6)
-            "淘宝" in lowerName || "taobao" in lowerPkg -> Color(0xFFFF5000)
-            "京东" in lowerName || "jingdong" in lowerPkg -> Color(0xFFE1251B)
-            "美团" in lowerName || "meituan" in lowerPkg -> Color(0xFFFFC300)
-            else -> {
-                val palette = listOf(
-                    Color(0xFF6366F1), Color(0xFF0EA5E9), Color(0xFF10B981),
-                    Color(0xFFF59E0B), Color(0xFF8B5CF6), Color(0xFFEC4899),
-                    Color(0xFF14B8A6), Color(0xFFF97316)
-                )
-                palette[abs(appName.hashCode()) % palette.size]
-            }
-        }
+internal object DesignTokens {
+    val Ink = Color(0xFF352A48)
+    val Lavender = Color(0xFFDACEEC)
+    @Composable fun urgentColor() = MaterialTheme.colorScheme.error
+    @Composable fun todoColor() = MaterialTheme.colorScheme.tertiary
+    @Composable fun importantColor() = MaterialTheme.colorScheme.primary
+    @Composable fun normalColor() = MaterialTheme.colorScheme.secondary
+    @Composable fun mutedColor() = MaterialTheme.colorScheme.onSurfaceVariant
+    private val palette = listOf(Color(0xFF8571AD), Color(0xFF6D8C9E), Color(0xFF7D9469), Color(0xFFAD8870), Color(0xFFAB7F94))
+    fun appColor(appName: String, packageName: String): Color = when {
+        packageName == "com.tencent.mm" -> Color(0xFF668F72)
+        "mail" in packageName -> Color(0xFF7D78AC)
+        "ding" in packageName || "lark" in packageName -> Color(0xFF6086A6)
+        else -> palette[Math.floorMod((packageName.ifBlank { appName }).hashCode(), palette.size)]
     }
 }
 
 @Composable
-fun MessageAtlasTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
-        typography = Type,
-        content = content
-    )
+fun MessageAtlasTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = if (darkTheme) DarkColors else LightColors, typography = AtlasTypography,
+        shapes = Shapes(small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(18.dp), large = RoundedCornerShape(24.dp)), content = content)
 }

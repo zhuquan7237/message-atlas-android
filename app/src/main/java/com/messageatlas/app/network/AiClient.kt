@@ -22,7 +22,10 @@ data class UrgentEvaluationResult(
 )
 
 class AiClient {
-    private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).build()
+    companion object {
+        private val client = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).callTimeout(150, TimeUnit.SECONDS).build()
+        private const val MAX_INPUT_CHARS = 120_000
+    }
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
     suspend fun summarize(baseUrl: String, key: String, model: String, prompt: String, messages: List<CapturedMessage>): String {
@@ -89,9 +92,9 @@ class AiClient {
             .get()
             .header("Accept", "application/json")
         if (key.isNotBlank()) builder.header("Authorization", "Bearer $key")
-        client.newCall(builder.build()).execute().use { response ->
+        client.newCall(builder.build()).awaitResponse().use { response ->
             val raw = response.body?.string().orEmpty()
-            if (!response.isSuccessful) error("模型接口返回 ${response.code}：${raw.take(300)}")
+            if (!response.isSuccessful) error("模型接口返回 HTTP ${response.code}，请检查地址、密钥及服务额度")
             val root = Json.parseToJsonElement(raw)
             val items = when (root) {
                 is JsonArray -> root
@@ -114,6 +117,7 @@ class AiClient {
     }
 
     private suspend fun call(baseUrl: String, key: String, model: String, system: String, user: String): String = withContext(Dispatchers.IO) {
+        require(user.length <= MAX_INPUT_CHARS) { "消息内容过多，请清理不需要的通知后重试（单次最多 12 万字符）" }
         val endpoint = normalizeEndpoint(baseUrl)
         val body = buildJsonObject {
             put("model", model)
@@ -125,9 +129,9 @@ class AiClient {
         }.toString()
         val builder = Request.Builder().url(endpoint).post(body.toRequestBody(jsonType)).header("Accept", "application/json")
         if (key.isNotBlank()) builder.header("Authorization", "Bearer $key")
-        client.newCall(builder.build()).execute().use { response ->
+        client.newCall(builder.build()).awaitResponse().use { response ->
             val raw = response.body?.string().orEmpty()
-            if (!response.isSuccessful) error("接口返回 ${response.code}：${raw.take(300)}")
+            if (!response.isSuccessful) error("接口返回 HTTP ${response.code}，请检查地址、密钥及服务额度")
             val root = Json.parseToJsonElement(raw).jsonObject
             val content = root["choices"]?.jsonArray?.firstOrNull()?.jsonObject
                 ?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content

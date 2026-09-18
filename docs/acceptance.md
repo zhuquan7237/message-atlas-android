@@ -7,7 +7,7 @@
 - 系统通知入口：`service/MessageNotificationListener.kt`
 - 本地持久化：`data/Entities.kt`、`Daos.kt`、`AppDatabase.kt`
 - 数据访问与按日范围：`data/MessageRepository.kt`
-- 浏览、搜索、来源筛选和日期切换：`ui/AppUi.kt` 与 `MainViewModel.kt`
+- 浏览、搜索、来源筛选和日期切换：`ui/HomeScreen.kt`、`ui/AppUi.kt`、`data/MessageFilters.kt` 与 `MainViewModel.kt`
 
 验收：开启系统通知使用权，从两个不同 App 产生通知；断网并重启应用后，仍能按日期浏览，并可按关键词和来源筛选。
 
@@ -15,7 +15,7 @@
 
 - 分类契约：`data/SettingsStore.kt` 中的默认结构化提示词
 - 响应解析及兼容：`data/ReportContent.kt`
-- 五类卡片和分享文本：`ui/AppUi.kt`
+- 五类卡片和分享文本：`ui/ReportContentUi.kt` 与 `ui/HistoryScreen.kt`
 - 自动化解析测试：`app/src/test/.../ReportContentTest.kt`
 
 五类分别为立即关注、待办、重要、一般、次要/广告。结构化项目包含来源 App、时间、标题、必要细节和建议行动。

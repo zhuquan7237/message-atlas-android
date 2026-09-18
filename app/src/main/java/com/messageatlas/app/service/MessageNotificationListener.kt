@@ -44,14 +44,14 @@ class MessageNotificationListener : NotificationListenerService() {
                 title = title, content = text, postedAt = sbn.postTime,
                 originalOngoing = sbn.isOngoing, originalClearable = sbn.isClearable
             )
-            val messageId = app.repository.insert(message)
-            if (ConversationDetector.isPersonConversation(sbn.packageName, sbn.notification, extras, title, text)) {
+            val captured = app.repository.capture(message)
+            if (captured.changed && ConversationDetector.isPersonConversation(sbn.packageName, sbn.notification, extras, title, text)) {
                 NotificationHelper.showConversationAlert(
                     context = this@MessageNotificationListener,
                     title = title,
                     content = text,
                     appName = appName,
-                    messageId = messageId
+                    messageId = captured.id
                 )
             }
         }

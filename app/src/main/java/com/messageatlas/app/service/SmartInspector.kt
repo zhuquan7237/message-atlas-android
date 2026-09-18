@@ -10,6 +10,7 @@ import com.messageatlas.app.MessageAtlasApp
 import com.messageatlas.app.data.timeText
 import com.messageatlas.app.network.AiClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -39,7 +40,7 @@ object SmartInspector {
 
         if (settings.apiUrl.isBlank() || settings.model.isBlank()) {
             val res = "AI 接口未配置，请先在设置中配置 API"
-            app.settings.recordInspection(System.currentTimeMillis(), res)
+            app.settings.recordInspectionFailure(res)
             return res
         }
 
@@ -52,8 +53,8 @@ object SmartInspector {
             System.currentTimeMillis() - (settings.inspectionIntervalMinutes.coerceAtLeast(10) * 60 * 1000L)
         }
 
-        val messages = app.repository.getMessagesAfter(lookbackTime)
         val now = System.currentTimeMillis()
+        val messages = app.repository.getMessagesAfter(lookbackTime).filter { it.postedAt <= now }
         val timeLabel = now.timeText()
 
         if (messages.isEmpty()) {
@@ -71,8 +72,9 @@ object SmartInspector {
                 messages = messages
             )
         }.getOrElse { e ->
+            if (e is CancellationException) throw e
             val errResult = "$timeLabel 巡检失败：${e.message ?: "连接错误"}"
-            app.settings.recordInspection(now, errResult)
+            app.settings.recordInspectionFailure(errResult)
             return errResult
         }
 

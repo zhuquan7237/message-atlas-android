@@ -5,7 +5,22 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MessageDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(message: CapturedMessage): Long
+    @Insert(onConflict = OnConflictStrategy.ABORT) suspend fun insert(message: CapturedMessage): Long
+    @Update suspend fun update(message: CapturedMessage)
+    @Query("SELECT * FROM messages WHERE notificationKey = :key LIMIT 1") suspend fun findByKey(key: String): CapturedMessage?
+    @Query("SELECT packageName, MAX(appName) AS appName FROM messages GROUP BY packageName ORDER BY appName COLLATE NOCASE")
+    fun observeSources(): Flow<List<SourceApp>>
+
+    @Transaction
+    suspend fun capture(message: CapturedMessage): CaptureResult {
+        val previous = findByKey(message.notificationKey)
+        if (previous == null) return CaptureResult(insert(message), true)
+        val changed = previous.title != message.title || previous.content != message.content
+        if (changed || previous.postedAt != message.postedAt) {
+            update(message.copy(id = previous.id, isImportant = previous.isImportant))
+        }
+        return CaptureResult(previous.id, changed)
+    }
     @Query("SELECT * FROM messages WHERE postedAt BETWEEN :start AND :end ORDER BY postedAt DESC") fun observeBetween(start: Long, end: Long): Flow<List<CapturedMessage>>
     @Query("SELECT * FROM messages WHERE postedAt BETWEEN :start AND :end ORDER BY postedAt ASC") suspend fun getBetween(start: Long, end: Long): List<CapturedMessage>
     @Query("SELECT * FROM messages WHERE postedAt > :since ORDER BY postedAt ASC") suspend fun getAfter(since: Long): List<CapturedMessage>
@@ -15,6 +30,8 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE postedAt BETWEEN :start AND :end") suspend fun deleteBetween(start: Long, end: Long)
     @Query("DELETE FROM messages") suspend fun deleteAll()
 }
+
+data class CaptureResult(val id: Long, val changed: Boolean)
 
 @Dao
 interface RuleDao {

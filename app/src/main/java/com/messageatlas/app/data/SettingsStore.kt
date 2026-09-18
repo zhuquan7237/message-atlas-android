@@ -63,7 +63,7 @@ class SettingsStore(private val context: Context) {
             animationEnabled = p[Keys.animation] ?: true,
             onboardingSeen = p[Keys.onboarding] ?: false,
             inspectionEnabled = p[Keys.inspectionEnabled] ?: false,
-            inspectionIntervalMinutes = p[Keys.inspectionInterval] ?: 10,
+            inspectionIntervalMinutes = (p[Keys.inspectionInterval] ?: 10).coerceIn(1, 720),
             urgentVibrateEnabled = p[Keys.urgentVibrate] ?: true,
             urgentSoundEnabled = p[Keys.urgentSound] ?: true,
             lastInspectionTime = p[Keys.lastInspectionTime] ?: 0L,
@@ -85,7 +85,10 @@ class SettingsStore(private val context: Context) {
     suspend fun setAnimation(enabled: Boolean) { context.dataStore.edit { it[Keys.animation] = enabled } }
     suspend fun setOnboardingSeen() { context.dataStore.edit { it[Keys.onboarding] = true } }
     suspend fun setInspectionEnabled(enabled: Boolean) { context.dataStore.edit { it[Keys.inspectionEnabled] = enabled } }
-    suspend fun setInspectionInterval(minutes: Int) { context.dataStore.edit { it[Keys.inspectionInterval] = minutes } }
+    suspend fun setInspectionInterval(minutes: Int) { context.dataStore.edit { it[Keys.inspectionInterval] = minutes.coerceIn(1, 720) } }
+    suspend fun recordInspectionFailure(result: String) {
+        context.dataStore.edit { it[Keys.lastInspectionResult] = result }
+    }
     suspend fun setUrgentVibrate(enabled: Boolean) { context.dataStore.edit { it[Keys.urgentVibrate] = enabled } }
     suspend fun setUrgentSound(enabled: Boolean) { context.dataStore.edit { it[Keys.urgentSound] = enabled } }
     suspend fun recordInspection(time: Long, result: String) {

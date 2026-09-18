@@ -8,13 +8,19 @@ import kotlinx.serialization.json.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.security.MessageDigest
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 import java.util.concurrent.TimeUnit
 
 data class AppUpdate(
     val version: String,
     val notes: String,
     val downloadUrl: String,
-    val sizeBytes: Long
+    val sizeBytes: Long,
+    val sha256: String? = null
 )
 
 class UpdateClient {
@@ -47,24 +53,26 @@ class UpdateClient {
             .header("Accept", "application/vnd.github+json")
             .get()
             .build()
-        client.newCall(request).execute().use { response ->
+        client.newCall(request).awaitResponse().use { response ->
             if (!response.isSuccessful) return@use null
             val root = json.parseToJsonElement(response.body?.string() ?: return@use null).jsonObject
             parseRelease(root)
         }
     }
 
-    private fun parseRelease(root: JsonObject): AppUpdate? {
+    internal fun parseRelease(root: JsonObject): AppUpdate? {
         val tagName = root["tag_name"]?.jsonPrimitive?.contentOrNull ?: return null
         val notes = root["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
         val assets = root["assets"]?.jsonArray ?: return null
-        for (asset in assets) {
+        for (asset in assets.sortedByDescending { (it as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull?.contains("optimized") == true }) {
             val item = asset as? JsonObject ?: continue
             val name = item["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
             if (name.endsWith(".apk", ignoreCase = true)) {
                 val url = item["browser_download_url"]?.jsonPrimitive?.contentOrNull ?: continue
                 val size = item["size"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L
-                return AppUpdate(version = tagName, notes = notes, downloadUrl = url, sizeBytes = size)
+                if (!url.startsWith("https://github.com/zhuquan7237/message-atlas-android/releases/download/")) continue
+                val digest = item["digest"]?.jsonPrimitive?.contentOrNull?.takeIf { it.startsWith("sha256:") }?.removePrefix("sha256:")
+                return AppUpdate(version = tagName, notes = notes, downloadUrl = url, sizeBytes = size, sha256 = digest)
             }
         }
         return null
@@ -74,16 +82,19 @@ class UpdateClient {
         withContext(Dispatchers.IO) {
             val part = File(destination.parentFile, destination.name + ".part")
             val request = Request.Builder().url(update.downloadUrl).get().build()
-            client.newCall(request).execute().use { response ->
+            try {
+            client.newCall(request).awaitResponse().use { response ->
                 check(response.isSuccessful) { "下载失败：HTTP ${response.code}" }
-                val total = response.body?.contentLength() ?: update.sizeBytes
-                response.body!!.byteStream().use { input ->
+                val body = checkNotNull(response.body) { "下载响应为空" }
+                val total = body.contentLength().takeIf { it > 0 } ?: update.sizeBytes
+                body.byteStream().use { input ->
                     part.outputStream().use { output ->
                         val buffer = ByteArray(64 * 1024)
                         var read: Int
                         var done = 0L
                         var lastPercent = -1
                         while (input.read(buffer).also { read = it } != -1) {
+                            coroutineContext.ensureActive()
                             output.write(buffer, 0, read)
                             done += read
                             if (total > 0) {
@@ -97,7 +108,25 @@ class UpdateClient {
                     }
                 }
             }
-            check(part.renameTo(destination)) { "下载文件重命名失败" }
+            verifyDownload(part, update.sizeBytes, update.sha256)
+            Files.move(part.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            } finally {
+                part.delete()
+            }
             destination
         }
+}
+
+internal fun verifyDownload(file: File, expectedSize: Long, expectedSha256: String?) {
+    check(file.length() > 0 && (expectedSize <= 0 || file.length() == expectedSize)) { "安装包大小校验失败，请重新下载" }
+    if (expectedSha256 != null) {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(65536)
+            var read: Int
+            while (input.read(buffer).also { read = it } != -1) digest.update(buffer, 0, read)
+        }
+        val actual = digest.digest().joinToString("") { "%02x".format(it) }
+        check(actual.equals(expectedSha256, ignoreCase = true)) { "安装包 SHA-256 校验失败，请重新下载" }
+    }
 }

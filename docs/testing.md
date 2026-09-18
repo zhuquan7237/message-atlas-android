@@ -2,12 +2,24 @@
 
 ## 自动化测试
 
-当前 JVM 单元测试覆盖 4 组核心纯逻辑，共 13 个测试用例：
+当前 JVM 单元测试覆盖 5 组核心纯逻辑：
 
 - `ReportContentTest`：五类结构化报告字段、JSON 代码块、空摘要和旧版纯文本兼容。
 - `ConvertersTest`：Room 枚举转换的完整往返。
 - `DateRangeTest`：本地时区下日期边界和时间格式化。
 - `UpdateClientTest`：主/次/补丁版本、缺失段、预发布后缀及降级判断。
+- `MessageFiltersTest`：搜索大小写/首尾空格、来源与重点筛选交叉、来源计数与排序。
+
+Android 仪器测试（`app/src/androidTest/`）覆盖：
+
+- `StorageRegressionTest`：通知更新保留 ID 与重点标记、重复内容不触发提醒、巡检失败不推进游标、巡检间隔边界收敛。
+- `AtlasUiTest`：收件箱搜索/重点/日期流程、设置→规则→AI→日报导航、删除二次确认；测试结束自动截图到设备外部目录 `files/qa`。
+
+运行仪器测试（需要已启动的模拟器或设备）：
+
+```powershell
+./gradlew.bat connectedDebugAndroidTest
+```
 
 运行测试：
 

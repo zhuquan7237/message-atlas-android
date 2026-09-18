@@ -12,6 +12,7 @@ import android.os.Build
 import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import com.messageatlas.app.MainActivity
 import com.messageatlas.app.R
@@ -29,9 +30,9 @@ object NotificationHelper {
     private const val NOTIFICATION_ID_CONVERSATION_SLOTS = 4
 
     fun createNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        @Suppress("DEPRECATION") // USAGE_NOTIFICATION_CONVERSATION 需要 API 36+，当前 compileSdk 35
         val audioAttributes = AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
@@ -106,13 +107,21 @@ object NotificationHelper {
         )
         val notificationId = NOTIFICATION_ID_CONVERSATION_BASE +
             Math.floorMod(messageId, NOTIFICATION_ID_CONVERSATION_SLOTS.toLong()).toInt()
+        val body = content.ifBlank { title }
+        val style: NotificationCompat.Style = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val me = Person.Builder().setName("消息图谱").build()
+            val author = Person.Builder().setName(title.ifBlank { "新消息" }).build()
+            NotificationCompat.MessagingStyle(me).addMessage(body, System.currentTimeMillis(), author)
+        } else {
+            @Suppress("DEPRECATION")
+            val legacy = NotificationCompat.MessagingStyle("消息图谱").addMessage(body, System.currentTimeMillis(), title)
+            legacy
+        }
         val builder = NotificationCompat.Builder(context, CHANNEL_CONVERSATION_V2)
             .setSmallIcon(R.drawable.ic_stat_funnel)
             .setContentTitle("新的人物消息 · $appName")
-            .setContentText(content.ifBlank { title })
-            .setStyle(NotificationCompat.MessagingStyle("消息图谱").addMessage(
-                content.ifBlank { title }, System.currentTimeMillis(), title
-            ))
+            .setContentText(body)
+            .setStyle(style)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

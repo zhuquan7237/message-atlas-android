@@ -11,11 +11,14 @@ class MessageRepository(
 ) {
     val rules = db.ruleDao().observeAll()
     val reports = db.reportDao().observeAll()
+    val knownApps = db.messageDao().observeSources()
+    private val ai = AiClient()
 
     fun messagesForDay(day: LocalDate) = db.messageDao().observeBetween(day.startMillis(), day.endMillis())
     suspend fun messagesForDayNow(day: LocalDate) = db.messageDao().getBetween(day.startMillis(), day.endMillis())
     suspend fun getMessagesAfter(since: Long) = db.messageDao().getAfter(since)
-    suspend fun insert(message: CapturedMessage): Long = db.messageDao().insert(message)
+    suspend fun insert(message: CapturedMessage): Long = db.messageDao().capture(message).id
+    suspend fun capture(message: CapturedMessage): CaptureResult = db.messageDao().capture(message)
     suspend fun toggleImportant(id: Long) = db.messageDao().toggleImportant(id)
     suspend fun setImportant(id: Long, important: Boolean) = db.messageDao().setImportant(id, important)
     suspend fun deleteMessage(id: Long) = db.messageDao().delete(id)
@@ -43,15 +46,16 @@ class MessageRepository(
         val config = settings.flow.first()
         val key = settings.decryptAiConfig(config.protectedAiConfig)
         require(config.apiUrl.isNotBlank() && config.model.isNotBlank()) { "请先完整配置 AI 接口" }
-        val markdown = AiClient().summarize(config.apiUrl, key, config.model, config.prompt, messages)
-        val report = DailyReport(day.toString(), markdown, config.model, System.currentTimeMillis())
+        val markdown = ai.summarize(config.apiUrl, key, config.model, config.prompt, messages)
+        val favorite = db.reportDao().get(day.toString())?.isFavorite ?: false
+        val report = DailyReport(day.toString(), markdown, config.model, System.currentTimeMillis(), isFavorite = favorite)
         db.reportDao().upsert(report)
         return report
     }
 
     suspend fun testConnection(apiUrl: String, key: String, model: String): String =
-        AiClient().test(apiUrl, key, model)
-    suspend fun fetchModels(apiUrl: String, key: String): List<String> = AiClient().listModels(apiUrl, key)
+        ai.test(apiUrl, key, model)
+    suspend fun fetchModels(apiUrl: String, key: String): List<String> = ai.listModels(apiUrl, key)
 
 }
 
