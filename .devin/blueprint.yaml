@@ -1,0 +1,52 @@
+# One-time setup (e.g., install system tools, global CLIs).
+initialize:
+  - name: Install JDK 17
+    run: |
+      java -version 2>&1 | grep -q '"17' || (sudo apt-get update && sudo apt-get install -y openjdk-17-jdk-headless unzip)
+  - name: Install Android SDK (platform 35, build-tools 34)
+    run: |
+      export ANDROID_HOME="$HOME/android-sdk"
+      if [ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+        mkdir -p "$ANDROID_HOME/cmdline-tools"
+        curl -fsSL -o /tmp/clt.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q -o /tmp/clt.zip -d "$ANDROID_HOME/cmdline-tools"
+        rm -rf "$ANDROID_HOME/cmdline-tools/latest"
+        mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+        rm -f /tmp/clt.zip
+      fi
+      yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+      "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null
+      echo "ANDROID_HOME=$ANDROID_HOME" >> $ENVRC
+      echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $ENVRC
+      echo "PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> $ENVRC
+  - name: Gradle Maven Central mirror (repo.maven.apache.org / plugins.gradle.org return HTTP 429 from Devin VMs)
+    run: |
+      mkdir -p "$HOME/.gradle/init.d"
+      cat > "$HOME/.gradle/init.d/maven-central-mirror.gradle" <<'EOF'
+      def mirrorUrl = 'https://maven-central.storage-download.googleapis.com/maven2/'
+      beforeSettings { settings ->
+          settings.pluginManagement.repositories {
+              maven { name = 'GoogleMavenCentralMirror'; url = mirrorUrl }
+          }
+          settings.dependencyResolutionManagement.repositories {
+              maven { name = 'GoogleMavenCentralMirror'; url = mirrorUrl }
+          }
+      }
+      EOF
+# Install project dependencies (runs during builds, surfaced to agent at session start).
+maintenance:
+  - name: Resolve Gradle dependencies
+    run: ./gradlew :app:dependencies --console=plain -q > /dev/null
+knowledge:
+  - name: test
+    contents: |
+      ./gradlew testDebugUnitTest
+  - name: lint
+    contents: |
+      ./gradlew lintDebug
+  - name: build
+    contents: |
+      ./gradlew assembleDebug   # -> app/build/outputs/apk/debug/app-debug.apk
+  - name: notes
+    contents: |
+      CI runs `./gradlew :app:dependencies --write-locks` then `git diff --exit-code -- app/gradle.lockfile`; refresh the lockfile after dependency changes. AI features need a user-supplied OpenAI-compatible endpoint/key entered in the app UI (no build-time secrets).
